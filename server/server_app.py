@@ -1,10 +1,9 @@
 import socket
 from datetime import datetime
 from config import settings
-from logger import init_logger
+from utils.logger import init_logger
 from manager import handle_client_connection
-from db_manager import init_database
-from utils import is_database_initialized
+from db_manager import init_database,is_database_initialized
 
 logger = init_logger('server.app')
 

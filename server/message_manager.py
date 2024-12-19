@@ -2,7 +2,7 @@ import os
 import sqlite3
 import struct
 from config import settings
-from status_codes import StatusCodes
+from utils.status_codes import StatusCodes
 
 
 def save_message(recipient_id, sender_id, message, timestamp):

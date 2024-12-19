@@ -1,6 +1,6 @@
 from pydantic_settings import BaseSettings
 from pydantic import ValidationError
-from logger import init_logger
+from utils.logger import init_logger
 
 logger = init_logger('server.app.config')
 

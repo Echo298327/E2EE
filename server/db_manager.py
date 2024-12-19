@@ -1,7 +1,7 @@
 import os
 import sqlite3
 from config import settings
-from logger import init_logger
+from utils.logger import init_logger
 from auth_encryption import generate_server_key_pair
 
 logger = init_logger('server.db_manager')
@@ -91,3 +91,9 @@ def get_server_public_key():
     public_key = cursor.fetchone()[0]
     conn.close()
     return public_key
+
+
+def is_database_initialized() -> bool:
+    """Check if the database file exists."""
+    db_path = os.path.join(os.getcwd(), 'storage.db')
+    return os.path.exists(db_path)

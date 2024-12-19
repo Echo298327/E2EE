@@ -1,5 +1,5 @@
 from config import settings
-from logger import init_logger
+from utils.logger import init_logger
 from manager import register_request
 
 logger = init_logger('client.app')

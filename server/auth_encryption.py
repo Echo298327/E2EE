@@ -16,25 +16,29 @@ def decrypt_with_server_private_key(encrypted_data):
     """
     Decrypt the given data using the server's private key.
     """
-    db_path = os.path.join(os.getcwd(), 'storage.db')
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
+    try:
+        db_path = os.path.join(os.getcwd(), 'storage.db')
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
 
-    # Fetch private key from the database
-    cursor.execute('SELECT private_key FROM server_keys ORDER BY created_at DESC LIMIT 1')
-    private_key_pem = cursor.fetchone()[0]
-    conn.close()
+        # Fetch private key from the database
+        cursor.execute('SELECT private_key FROM server_keys ORDER BY created_at DESC LIMIT 1')
+        private_key_pem = cursor.fetchone()[0]
+        conn.close()
 
-    private_key = load_pem_private_key(private_key_pem.encode(), password=None)
-    decrypted_data = private_key.decrypt(
-        encrypted_data,
-        padding.OAEP(
-            mgf=padding.MGF1(algorithm=hashes.SHA256()),
-            algorithm=hashes.SHA256(),
-            label=None
+        private_key = load_pem_private_key(private_key_pem.encode(), password=None)
+        decrypted_data = private_key.decrypt(
+            encrypted_data,
+            padding.OAEP(
+                mgf=padding.MGF1(algorithm=hashes.SHA256()),
+                algorithm=hashes.SHA256(),
+                label=None
+            )
         )
-    )
-    return decrypted_data.decode()
+        return decrypted_data.decode('utf-8')
+    except Exception as e:
+        logger.error(f"Decryption error: {e}")
+        raise
 
 
 def generate_server_key_pair():

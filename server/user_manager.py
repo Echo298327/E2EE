@@ -1,10 +1,10 @@
 import os
 import sqlite3
-import struct
 from config import settings
-from utils import recv_exact
-from status_codes import StatusCodes
-from logger import init_logger as logger
+from utils.recv import recv_exact
+from request_handler import send_response
+from utils.status_codes import StatusCodes
+from utils.logger import init_logger as logger
 from datetime import datetime, timedelta
 from db_manager import get_server_public_key
 from auth_encryption import generate_six_digit_code, decrypt_with_server_private_key
@@ -63,58 +63,57 @@ def validate_registration_token(token):
 def request_registration_token(client_socket, version):
     try:
         # Generate a 6-digit registration token
-        token = str(generate_registration_token())  # Convert the integer token to a string
+        token = str(generate_registration_token())
 
         # Retrieve the server's public key
         public_key = get_server_public_key()
         if not public_key:
             raise ValueError("Server public key not found")
 
-        # Encode the public key and token as payload
-        token_encoded = token.encode()
-        public_key_encoded = public_key.encode()
-        payload = token_encoded + public_key_encoded
-        payload_len = len(payload)
-
-        # Respond with the token and public key in a single payload
-        response = struct.pack('B H H', version, StatusCodes.TOKEN_ISSUED.value, payload_len) + payload
-        client_socket.send(response)
-
+        # Create payload with token and public key
+        payload = token.encode() + public_key.encode()
+        
+        # Send response with payload
+        send_response(client_socket, version, StatusCodes.TOKEN_ISSUED.value, payload)
+        
         logger.info(f"Registration token issued: {token}")
-        logger.info(f"Public key sent with token.")
+        logger.info("Public key sent with token.")
     except Exception as e:
         logger.error(f"Error during token generation or public key retrieval: {e}")
-        response = struct.pack('B H', version, StatusCodes.SERVER_ERROR.value)
-        client_socket.send(response)
+        send_response(client_socket, version, StatusCodes.SERVER_ERROR.value)
 
 
-def complete_registration(client_socket, version):
+def complete_registration(client_socket, version, user_id, payload_len):
     try:
-        # Receive token and encrypted payload
-        token = client_socket.recv(6).decode()
-        encrypted_len = struct.unpack('H', client_socket.recv(2))[0]
-        encrypted_data = recv_exact(client_socket, encrypted_len)  # Ensure full data is received
-
-        # Validate token
+        # Receive payload
+        payload = recv_exact(client_socket, payload_len)
+        logger.info(f"Received payload of length: {len(payload)}")
+        
+        # Extract and validate token
+        token_bytes = payload[:6]
+        encrypted_data = payload[6:]
+        
+        token = token_bytes.decode('ascii')
+        logger.info(f"Extracted token: {token}")
+        
+        if not token.isdigit() or len(token) != 6:
+            raise ValueError(f"Invalid token format: {token}")
         if not validate_registration_token(token):
-            response = struct.pack('B H', version, StatusCodes.INVALID_TOKEN.value)
-            client_socket.send(response)
-            logger.error(f"Invalid or expired token: {token}")
-            return
-
-        # Decrypt payload
+            raise ValueError(f"Invalid or expired token: {token}")
+        
+        # Process the encrypted portion of the payload
         decrypted_data = decrypt_with_server_private_key(encrypted_data)
-        user_id, client_public_key = decrypted_data.split('|')
-        logger.info(f"Decrypted payload: user_id={user_id}, client_public_key={client_public_key}")
-
-        # Save the client public key
+        decrypted_user_id, client_public_key = decrypted_data.split('|')
+        
+        # Verify user_id matches
+        if int(decrypted_user_id) != user_id:
+            raise ValueError(f"User ID mismatch: header={user_id}, payload={decrypted_user_id}")
+        
+        # Complete registration
         save_user(client_public_key)
-
-        # Send success response
-        response = struct.pack('B H', version, StatusCodes.REQUEST_REGISTRATION_COMPLETE.value)
-        client_socket.send(response)
-        logger.info(f"User registration completed successfully for user_id={user_id}.")
+        send_response(client_socket, version, StatusCodes.REQUEST_REGISTRATION_COMPLETE.value)
+        logger.info(f"Registration completed for user_id={user_id}")
+        
     except Exception as e:
         logger.error(f"Error during registration: {e}")
-        response = struct.pack('B H', version, StatusCodes.SERVER_ERROR.value)
-        client_socket.send(response)
+        send_response(client_socket, version, StatusCodes.SERVER_ERROR.value)

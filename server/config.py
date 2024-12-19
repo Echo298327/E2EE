@@ -1,6 +1,7 @@
+from typing import ClassVar
 from pydantic_settings import BaseSettings
 from pydantic import ValidationError
-from logger import init_logger
+from utils.logger import init_logger
 
 logger = init_logger('server.app.config')
 
@@ -16,6 +17,10 @@ class Settings(BaseSettings):
 
     # database settings
     DATABASE_PATH: str = 'storage.db'
+
+    # Protocol settings
+    HEADER_FORMAT: ClassVar[str] = '!I B B H'  # network byte order, user_id, version, op, payload_len
+    RESPONSE_FORMAT: ClassVar[str] = '!B H H'  # network byte order, version, status, payload_len
 
 
 try:
