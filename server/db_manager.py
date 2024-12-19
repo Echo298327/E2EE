@@ -97,3 +97,91 @@ def is_database_initialized() -> bool:
     """Check if the database file exists."""
     db_path = os.path.join(os.getcwd(), 'storage.db')
     return os.path.exists(db_path)
+
+
+def save_message(recipient_id, sender_id, message, timestamp):
+    """Save a new message to the database."""
+    conn = sqlite3.connect(os.path.join(os.getcwd(), settings.DATABASE_PATH))
+    cursor = conn.cursor()
+    cursor.execute(
+        'INSERT INTO messages (recipient_id, sender_id, message, timestamp, sent) VALUES (?, ?, ?, ?, 0)',
+        (recipient_id, sender_id, message, timestamp)
+    )
+    conn.commit()
+    conn.close()
+
+
+def get_unsent_messages(user_id):
+    """Retrieve all unsent messages for a specific user."""
+    conn = sqlite3.connect(os.path.join(os.getcwd(), settings.DATABASE_PATH))
+    cursor = conn.cursor()
+    cursor.execute(
+        'SELECT id, sender_id, message FROM messages WHERE recipient_id = ? AND sent = 0', 
+        (user_id,)
+    )
+    messages = cursor.fetchall()
+    conn.close()
+    return messages
+
+
+def mark_messages_as_sent(message_ids):
+    """Mark multiple messages as sent."""
+    conn = sqlite3.connect(os.path.join(os.getcwd(), settings.DATABASE_PATH))
+    cursor = conn.cursor()
+    cursor.executemany(
+        'UPDATE messages SET sent = 1 WHERE id = ?', 
+        [(msg_id,) for msg_id in message_ids]
+    )
+    conn.commit()
+    conn.close()
+
+
+def save_user(public_key, user_id):
+    """Save a new user to the database with specific ID."""
+    conn = sqlite3.connect(os.path.join(os.getcwd(), settings.DATABASE_PATH))
+    cursor = conn.cursor()
+    cursor.execute('INSERT INTO users (id, public_key) VALUES (?, ?)', (user_id, public_key))
+    conn.commit()
+    conn.close()
+
+
+def validate_user(public_key):
+    """Check if a user exists with the given public key."""
+    conn = sqlite3.connect(os.path.join(os.getcwd(), settings.DATABASE_PATH))
+    cursor = conn.cursor()
+    cursor.execute('SELECT id FROM users WHERE public_key = ?', (public_key,))
+    user = cursor.fetchone()
+    conn.close()
+    return user is not None
+
+
+def save_registration_token(token, expires_at):
+    """Save a new registration token to the database."""
+    conn = sqlite3.connect(os.path.join(os.getcwd(), settings.DATABASE_PATH))
+    cursor = conn.cursor()
+    cursor.execute(
+        'INSERT INTO registration_tokens (token, expires_at) VALUES (?, ?)', 
+        (token, expires_at)
+    )
+    conn.commit()
+    conn.close()
+
+
+def get_token_expiry(token):
+    """Get the expiration time for a registration token."""
+    conn = sqlite3.connect(os.path.join(os.getcwd(), settings.DATABASE_PATH))
+    cursor = conn.cursor()
+    cursor.execute('SELECT expires_at FROM registration_tokens WHERE token = ?', (token,))
+    result = cursor.fetchone()
+    conn.close()
+    return result[0] if result else None
+
+
+def user_exists(user_id):
+    """Check if a user exists with the given ID."""
+    conn = sqlite3.connect(os.path.join(os.getcwd(), settings.DATABASE_PATH))
+    cursor = conn.cursor()
+    cursor.execute('SELECT id FROM users WHERE id = ?', (user_id,))
+    user = cursor.fetchone()
+    conn.close()
+    return user is not None

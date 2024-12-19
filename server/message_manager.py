@@ -1,28 +1,9 @@
-import os
-import sqlite3
 import struct
-from config import settings
 from utils.status_codes import StatusCodes
+from server.db_manager import save_message, get_unsent_messages
+from utils.logger import init_logger
 
-
-def save_message(recipient_id, sender_id, message, timestamp):
-    db_path = os.path.join(os.getcwd(), settings.DATABASE_PATH)
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-    cursor.execute('INSERT INTO messages (recipient_id, sender_id, message, timestamp, sent) VALUES (?, ?, ?, ?, 0)',
-                   (recipient_id, sender_id, message, timestamp))
-    conn.commit()
-    conn.close()
-
-
-def get_unsent_messages(user_id):
-    db_path = os.path.join(os.getcwd(), settings.DATABASE_PATH)
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-    cursor.execute('SELECT id, sender_id, message FROM messages WHERE recipient_id = ? AND sent = 0', (user_id,))
-    messages = cursor.fetchall()
-    conn.close()
-    return messages
+logger = init_logger('server.message_manager')
 
 
 def deliver_unsent_messages(client_socket, version, user_id):
@@ -40,13 +21,4 @@ def send_message(client_socket, message_len, version, sender_id, recipient_id, t
     response = struct.pack('B H', version, StatusCodes.MESSAGE_SAVED.value)
     logger.info(f"Unsent message saved for recipient: {recipient_id} at {timestamp}")
     client_socket.send(response)
-
-
-def mark_messages_as_sent(message_ids):
-    db_path = os.path.join(os.getcwd(), settings.DATABASE_PATH)
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-    cursor.executemany('UPDATE messages SET sent = 1 WHERE id = ?', [(msg_id,) for msg_id in message_ids])
-    conn.commit()
-    conn.close()
 

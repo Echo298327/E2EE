@@ -18,7 +18,6 @@ def handle_client_connection(client_socket, time_stamp):
             header_data = recv_exact(client_socket, struct.calcsize(header_format))
             user_id, version, op, message_len = struct.unpack(header_format, header_data)
             
-            logger.info(f"Raw header bytes: {header_data.hex()}")
             logger.info(f"Received request: user_id={user_id}, version={version}, op={op}, message_len={message_len}")
             
             # Handle different operations

@@ -24,7 +24,6 @@ def send_response(client_socket, version, status_code, payload=b''):
             response = response_header
 
         client_socket.send(response)
-        logger.info(f"Sent response: version={version}, status={status_code}, payload_len={payload_len}")
     except Exception as e:
         logger.error(f"Error sending response: {e}")
         # Send error response without payload
