@@ -69,56 +69,6 @@ def receive_response(client_socket):
         raise
 
 
-def register_user_request_with_token(server_host, server_port, user_id, client_public_key, token, server_public_key):
-    try:
-        client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        client_socket.connect((server_host, server_port))
-        logger.info(f"Connected to server at {server_host}:{server_port}")
-
-        # Prepare payload
-        token_str = str(token).zfill(6)[:6]
-        token_bytes = token_str.encode('ascii')
-        
-        data_to_encrypt = f"{user_id}|{client_public_key}"
-        encrypted_data = encrypt_with_server_public_key(data_to_encrypt, server_public_key)
-        
-        payload = token_bytes + encrypted_data
-        payload_len = len(payload)
-        
-        # Validate payload size
-        if payload_len > 1048576:  # 1MB max
-            raise ValueError(f"Payload too large: {payload_len} bytes")
-        
-        # Prepare header
-        op_code = StatusCodes.REQUEST_SECURE_REGISTRATION_COMPLETE.value
-
-        header_data = bytearray()
-        header_data.extend(struct.pack('!I', user_id))  # 4 bytes for user_id
-        header_data.extend(struct.pack('!B', 1))        # 1 byte for version
-        header_data.extend(struct.pack('!B', op_code))  # 1 byte for op
-        header_data.extend(struct.pack('!H', payload_len))  # 2 bytes for length
-        
-        # Log the header details
-        logger.info(f"Sending header - user_id: {user_id}, version: 1, " +
-                    f"op: {op_code}, length: {payload_len}")
-
-        # Send header and payload separately
-        client_socket.sendall(header_data)
-        client_socket.sendall(payload)
-
-        # Receive response
-        version, status, response_payload = receive_response(client_socket)
-        logger.info(f"Registration response status: {status}")
-        
-        return status == StatusCodes.REQUEST_REGISTRATION_COMPLETE.value
-
-    except Exception as e:
-        logger.error(f"Registration request failed: {e}")
-        return False
-    finally:
-        client_socket.close()
-
-
 def register_request(server_host, server_port, user_id, version, client_public_key):
     client_socket = None
     try:
