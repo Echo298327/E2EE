@@ -1,6 +1,6 @@
-import sqlite3
-import random
 import os
+import random
+import sqlite3
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import padding
