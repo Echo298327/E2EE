@@ -73,6 +73,9 @@ def request_recipient_public_key(client_socket, sender_id, recipient_id):
         if status == StatusCodes.REQUEST_RECIPIENT_PUBLIC_KEY.value:
             recipient_public_key = recv_exact(client_socket, payload_len).decode()
             return recipient_public_key
+        elif status == StatusCodes.UNAUTHORIZED.value:
+            logger.error(f"Unauthorized request to get recipient public key. Status: {status}")
+            return None
 
         logger.error(f"Failed to get recipient public key. Status: {status}")
         return None

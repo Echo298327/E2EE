@@ -5,6 +5,7 @@ from request_handler import send_response
 from utils.status_codes import StatusCodes
 from message_manager import send_message, deliver_unsent_messages, get_recipient_public_key
 from user_manager import request_registration_token, complete_registration
+from db_manager import user_exists
 from config import settings
 
 
@@ -26,7 +27,11 @@ def handle_client_connection(client_socket, time_stamp):
                 # Unpack the header
                 user_id, version, op, message_len = struct.unpack(header_format, header_data)
                 logger.info(f"Received request: user_id={user_id}, version={version}, op={op}, message_len={message_len}")
-
+                if not user_exists(user_id):
+                    if op not in settings.allow_operations_for_unregistered_users:
+                        logger.error(f"User {user_id} is unauthorized to perform operation {op}")
+                        send_response(client_socket, version, StatusCodes.UNAUTHORIZED.value)
+                        break
                 # Add user to connected clients
                 add_user_to_connected_clients(user_id, client_socket)
 

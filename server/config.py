@@ -1,8 +1,8 @@
-from typing import ClassVar
 from typing import ClassVar, List, Dict, Any
 from pydantic_settings import BaseSettings
 from pydantic import ValidationError
 from utils.logger import init_logger
+from utils.status_codes import StatusCodes
 
 logger = init_logger('server.app.config')
 
@@ -25,6 +25,11 @@ class Settings(BaseSettings):
 
     # connected clients
     connected_clients: List[Dict[str, Any]] = []
+    allow_operations_for_unregistered_users: List[int] = [
+        StatusCodes.REQUEST_CONNECTION.value,
+        StatusCodes.REQUEST_REGISTRATION_TOKEN.value,
+        StatusCodes.REQUEST_SECURE_REGISTRATION_COMPLETE.value
+    ]
 
 
 try:
