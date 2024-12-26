@@ -60,36 +60,48 @@ def complete_registration(client_socket, version, user_id, payload_len):
         # Receive payload
         payload = recv_exact(client_socket, payload_len)
 
-        # Extract and validate token
+        # Extract token
         token_bytes = payload[:6]
-        encrypted_data = payload[6:]
-        
         token = token_bytes.decode('ascii')
+        logger.info(f"Extracted token: {token}")
 
+        # Validate token
         if not token.isdigit() or len(token) != 6:
             raise ValueError(f"Invalid token format: {token}")
         if not validate_registration_token(token):
             raise ValueError(f"Invalid or expired token: {token}")
-        
-        # Process the encrypted portion of the payload
-        decrypted_data = decrypt_with_server_private_key(encrypted_data)
-        decrypted_user_id, client_public_key = decrypted_data.split('|')
-        
-        # Verify user_id matches
+
+        # Extract encrypted user_id
+        encrypted_user_id_len = 256  # Assuming RSA 2048-bit key
+        encrypted_user_id = payload[6:6 + encrypted_user_id_len]
+
+        # Extract client public key
+        client_public_key = payload[6 + encrypted_user_id_len:].decode()
+        logger.info(f"Extracted client public key: {client_public_key[:30]}...")
+
+        # Decrypt user_id
+        decrypted_user_id = decrypt_with_server_private_key(encrypted_user_id)
+
+        # Verify user_id matches the header
         if int(decrypted_user_id) != user_id:
             raise ValueError(f"User ID mismatch: header={user_id}, payload={decrypted_user_id}")
-        
+
         # Check if user already exists
         if user_exists(user_id):
             logger.warning(f"User {user_id} already registered")
             send_response(client_socket, version, StatusCodes.REQUEST_REGISTRATION_COMPLETE.value)
             return
-            
-        # Complete registration
+
+        # Save the user's public key
         save_user(client_public_key, user_id)
+        logger.info(f"User {user_id} successfully registered with public key.")
+
+        # Send success response
         send_response(client_socket, version, StatusCodes.REQUEST_REGISTRATION_COMPLETE.value)
-        logger.info(f"Registration completed for user_id={user_id}")
-        
+
+    except ValueError as ve:
+        logger.error(f"Validation error during registration: {ve}")
+        send_response(client_socket, version, StatusCodes.INVALID_TOKEN.value)
     except Exception as e:
-        logger.error(f"Error during registration: {e}")
+        logger.error(f"Unexpected error during registration: {e}")
         send_response(client_socket, version, StatusCodes.SERVER_ERROR.value)

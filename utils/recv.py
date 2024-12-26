@@ -1,11 +1,15 @@
 import socket
 import struct
+from utils.logger import init_logger
+
+logger = init_logger('utils.recv')
 
 
 def recv_exact(client_socket, length):
     """
-    Receive exactly length bytes from the socket.
-    Raises ConnectionError if connection is broken.
+    Receive exactly `length` bytes from the socket.
+    Raises ConnectionError if connection is broken unexpectedly.
+    Handles graceful client disconnections and resets.
     """
     # Sanity check for length
     if length > 1048576:  # 1MB max
@@ -14,14 +18,39 @@ def recv_exact(client_socket, length):
     data = b""
     while len(data) < length:
         try:
-            packet = client_socket.recv(min(length - len(data), 8192))  # Read in chunks of 8KB
-            if not packet:
-                raise ConnectionError("Socket connection broken")
+            # Calculate the remaining bytes to read
+            remaining = length - len(data)
+
+            # Read in chunks of 8KB or less
+            packet = client_socket.recv(min(remaining, 8192))
+
+            if not packet:  # Client closed the connection
+                if len(data) == 0:
+                    logger.info("Client closed the connection without sending any data.")
+                    return data  # Return what we have (or empty)
+                else:
+                    raise ConnectionError("Socket connection broken after partial data received")
+
             data += packet
+
+        except ConnectionResetError as e:
+            logger.info(f"Client reset the connection: {e}")
+            return data  # Return partial data if available
+
+        except socket.timeout as e:
+            logger.error(f"Socket timeout while receiving data: {e}")
+            raise ConnectionError(f"Socket timeout while receiving data: {e}")
+
         except socket.error as e:
+            logger.error(f"Socket error while receiving data: {e}")
             raise ConnectionError(f"Socket error while receiving data: {e}")
 
+        except Exception as e:
+            logger.error(f"Unexpected error while receiving data: {e}")
+            raise ConnectionError(f"Unexpected error while receiving data: {e}")
+
     return data
+
 
 
 def recv_header(client_socket, header_format):

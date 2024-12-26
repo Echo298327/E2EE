@@ -16,7 +16,7 @@ COLOR_CODES = {
 class JsonFormatter(logging.Formatter):
     def format(self, record):
         log_message = {
-            "time": self.formatTime(record, self.datefmt),
+            "time": self.formatTime(record, "%Y-%m-%d %H:%M:%S"),
             "name": record.name,
             "level": record.levelname,
             "message": record.getMessage()
@@ -42,3 +42,9 @@ def init_logger(name):
         logger.addHandler(stream_handler)
 
     return logger
+
+
+def log(message):
+    light_blue = "\033[94m"
+    reset = "\033[0m"
+    print(f"{light_blue}{message}{reset}")

@@ -124,6 +124,15 @@ def get_unsent_messages(user_id):
     return messages
 
 
+def delete_unsent_messages(user_id):
+    """Delete all unsent messages for a specific user."""
+    conn = sqlite3.connect(os.path.join(os.getcwd(), settings.DATABASE_PATH))
+    cursor = conn.cursor()
+    cursor.execute('DELETE FROM messages WHERE recipient_id = ? AND sent = 0', (user_id,))
+    conn.commit()
+    conn.close()
+
+
 def mark_messages_as_sent(message_ids):
     """Mark multiple messages as sent."""
     conn = sqlite3.connect(os.path.join(os.getcwd(), settings.DATABASE_PATH))
@@ -185,3 +194,13 @@ def user_exists(user_id):
     user = cursor.fetchone()
     conn.close()
     return user is not None
+
+
+def get_user_public_key(user_id):
+    """Retrieve the public key for a specific user."""
+    conn = sqlite3.connect(os.path.join(os.getcwd(), settings.DATABASE_PATH))
+    cursor = conn.cursor()
+    cursor.execute('SELECT public_key FROM users WHERE id = ?', (user_id,))
+    public_key = cursor.fetchone()
+    conn.close()
+    return public_key[0] if public_key else None

@@ -1,4 +1,5 @@
 from typing import ClassVar
+from typing import ClassVar, List, Dict, Any
 from pydantic_settings import BaseSettings
 from pydantic import ValidationError
 from utils.logger import init_logger
@@ -21,6 +22,9 @@ class Settings(BaseSettings):
     # Protocol settings
     HEADER_FORMAT: ClassVar[str] = '!I B B H'  # network byte order, user_id, version, op, payload_len
     RESPONSE_FORMAT: ClassVar[str] = '!B H H'  # network byte order, version, status, payload_len
+
+    # connected clients
+    connected_clients: List[Dict[str, Any]] = []
 
 
 try:

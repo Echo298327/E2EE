@@ -1,11 +1,15 @@
 import os
 import random
 import sqlite3
+from utils.logger import init_logger
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.serialization import load_pem_private_key
+
+
+logger = init_logger('server.auth_encryption')
 
 
 def generate_six_digit_code():
