@@ -69,9 +69,10 @@ def decrypt_message(encrypted_message, private_key):
         str: The decrypted message as a string, or None if decryption fails.
     """
     try:
+        if not private_key:
+            raise ValueError("Private key not provided")
         # Deserialize the private key
         private_key_obj = load_pem_private_key(private_key, password=None)
-        logger.info(f"Private key loaded successfully. {private_key_obj}")
 
         # Decrypt the message
         decrypted_message = private_key_obj.decrypt(

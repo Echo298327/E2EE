@@ -2,6 +2,7 @@ import os
 import sqlite3
 from config import settings
 from utils.logger import init_logger
+from datetime import datetime, timedelta
 from auth_encryption import generate_server_key_pair
 
 logger = init_logger('server.db_manager')
@@ -62,8 +63,13 @@ def initialize_server_keys():
     Generate and store a new RSA key pair for the server.
     """
     private_key, public_key = generate_server_key_pair()
+    # save the server's public key to a file
+    logger.info(f'Server public key: {public_key}')
+    with open('../client/server_public_key.pem', 'wb') as f:
+        f.write(public_key.encode('utf-8'))  # Encode the string into bytes
     save_server_key_pair(private_key, public_key)
     logger.info('Server keys initialized')
+
 
 
 def save_server_key_pair(private_key, public_key):
@@ -204,3 +210,30 @@ def get_user_public_key(user_id):
     public_key = cursor.fetchone()
     conn.close()
     return public_key[0] if public_key else None
+
+
+def delete_registration_token(token):
+    """Delete a registration token from the database."""
+    conn = sqlite3.connect(os.path.join(os.getcwd(), settings.DATABASE_PATH))
+    cursor = conn.cursor()
+    cursor.execute('DELETE FROM registration_tokens WHERE token = ?', (token,))
+    conn.commit()
+    conn.close()
+
+
+def delete_expired_registration_tokens():
+    """Delete all expired registration tokens from the database."""
+    conn = sqlite3.connect(os.path.join(os.getcwd(), settings.DATABASE_PATH))
+    cursor = conn.cursor()
+
+    # Get the current timestamp
+    current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+    # Delete tokens where the expires_at time has passed
+    cursor.execute('''
+        DELETE FROM registration_tokens 
+        WHERE expires_at <= ?
+    ''', (current_time,))
+
+    conn.commit()
+    conn.close()

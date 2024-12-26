@@ -18,11 +18,11 @@ if __name__ == "__main__":
         log(f"-------------------------- Step 1 --------------------------")
         socket_1 = connection_request(settings.SERVER_HOST, int(settings.SERVER_PORT), client_1, version)
         register_request(socket_1, client_1, version)
-        socket_1.close()
+        close_socket(socket_1)
         # Client 2
         socket_2 = connection_request(settings.SERVER_HOST, int(settings.SERVER_PORT), client_1, version)
         register_request(socket_2, client_2, version)
-        socket_2.close()
+        close_socket(socket_2)
 
         # step 2 - client 1 sends a message to client 2 while client 2 is not connected
         log(f"-------------------------- Step 2 --------------------------")
@@ -41,11 +41,11 @@ if __name__ == "__main__":
             message="Client2! are you there?",
             version=version
         )
-        socket_1.close()
+        close_socket(socket_1)
         # # step 3 - client 2 connects and receives the message
         log(f"-------------------------- Step 3 --------------------------")
-        client_2 = connection_request(settings.SERVER_HOST, int(settings.SERVER_PORT), client_2, version)
-        client_2.close()
+        socket_2 = connection_request(settings.SERVER_HOST, int(settings.SERVER_PORT), client_2, version)
+        close_socket(socket_2)
         # step 4 - client 1 sends a message to client 2 while client 2 is connected
         log(f"-------------------------- Step 4 --------------------------")
         socket_1 = connection_request(settings.SERVER_HOST, int(settings.SERVER_PORT), client_1, version)

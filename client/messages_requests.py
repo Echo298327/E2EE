@@ -121,9 +121,6 @@ def send_encrypted_message(client_socket, sender_id, recipient_id, encrypted_mes
         client_socket.send(payload)
         logger.info(f"Payload sent: recipient_id={recipient_id}, encrypted_message_length={len(encrypted_message)}")
 
-        # Ensure all data is sent before closing the write channel
-        client_socket.shutdown(socket.SHUT_WR)
-
         # Receive response
         response_header_format = "!B H"
         response_header_size = struct.calcsize(response_header_format)

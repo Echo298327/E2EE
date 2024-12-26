@@ -4,7 +4,7 @@ from datetime import datetime
 from config import settings
 from utils.logger import init_logger
 from manager import handle_client_connection
-from db_manager import init_database, is_database_initialized
+from db_manager import init_database, is_database_initialized, delete_expired_registration_tokens
 
 logger = init_logger('server.app')
 
@@ -38,4 +38,7 @@ def start_server():
 if __name__ == "__main__":
     if not is_database_initialized():
         init_database()
+    delete_expired_registration_tokens()
     start_server()
+
+

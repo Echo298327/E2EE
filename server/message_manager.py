@@ -13,13 +13,13 @@ def deliver_unsent_messages(client_socket, version, user_id):
     Send all unsent messages for a given user in a single response.
     """
     unsent_messages = get_unsent_messages(user_id)
-    logger.info(f"Found {len(unsent_messages)} unsent messages for user_id={user_id}")
+    if len(unsent_messages) > 0:
+        logger.info(f"Found {len(unsent_messages)} unsent messages for user_id={user_id}")
 
     if not unsent_messages:
         # Send a response indicating no unsent messages
         response = struct.pack('!B H H', version, StatusCodes.SUCCESSFUL_CONNECTION.value, 0)
         client_socket.sendall(response)
-        logger.info(f"No unsent messages for user_id={user_id}")
         return
 
     # Prepare the aggregated payload

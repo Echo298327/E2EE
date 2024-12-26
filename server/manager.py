@@ -14,13 +14,13 @@ logger = init_logger('server.manager')
 def handle_client_connection(client_socket, time_stamp):
     user_id = None  # Initialize user_id for proper cleanup
     try:
+        logger.warning(f"Connected Clients: {settings.connected_clients}")
         while True:  # Keep handling requests until the client closes the connection
             try:
                 # Read and validate the header
                 header_format = '!I B B H'  # user_id, version, op, payload_len
                 header_data = recv_exact(client_socket, struct.calcsize(header_format))
                 if not header_data:
-                    logger.info("Client closed the connection gracefully.")
                     break  # Exit the loop when no data is received
 
                 # Unpack the header
@@ -34,7 +34,7 @@ def handle_client_connection(client_socket, time_stamp):
                 if op == StatusCodes.REQUEST_CONNECTION.value:
                     deliver_unsent_messages(client_socket, version, user_id)
                 elif op == StatusCodes.REQUEST_REGISTRATION_TOKEN.value:
-                    request_registration_token(client_socket, version)
+                    request_registration_token(client_socket, user_id, version)
                 elif op == StatusCodes.REQUEST_SECURE_REGISTRATION_COMPLETE.value:
                     complete_registration(client_socket, version, user_id, message_len)
                 elif op == StatusCodes.REQUEST_SEND_MESSAGE.value:
@@ -56,7 +56,7 @@ def handle_client_connection(client_socket, time_stamp):
     finally:
         if user_id:
             remove_disconnected_client(user_id)
-        logger.info("Closing client connection.")
+        logger.info(f"Closing client {user_id} connection.")
         client_socket.close()
 
 

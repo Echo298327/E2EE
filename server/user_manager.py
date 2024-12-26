@@ -8,7 +8,8 @@ from db_manager import (
     save_user, 
     save_registration_token,
     get_token_expiry,
-    user_exists
+    user_exists,
+    delete_registration_token
 )
 from auth_encryption import generate_six_digit_code, decrypt_with_server_private_key
 
@@ -34,8 +35,12 @@ def validate_registration_token(token):
     return False  # Token is invalid or expired
 
 
-def request_registration_token(client_socket, version):
+def request_registration_token(client_socket, user_id, version):
     try:
+        if user_exists(user_id):
+            logger.warning(f"User {user_id} already registered")
+            send_response(client_socket, version, StatusCodes.REQUEST_REGISTRATION_COMPLETE.value)
+            return
         # Generate a 6-digit registration token
         token = str(generate_registration_token())
 
@@ -63,7 +68,6 @@ def complete_registration(client_socket, version, user_id, payload_len):
         # Extract token
         token_bytes = payload[:6]
         token = token_bytes.decode('ascii')
-        logger.info(f"Extracted token: {token}")
 
         # Validate token
         if not token.isdigit() or len(token) != 6:
@@ -71,13 +75,14 @@ def complete_registration(client_socket, version, user_id, payload_len):
         if not validate_registration_token(token):
             raise ValueError(f"Invalid or expired token: {token}")
 
+        delete_registration_token(token)
         # Extract encrypted user_id
         encrypted_user_id_len = 256  # Assuming RSA 2048-bit key
         encrypted_user_id = payload[6:6 + encrypted_user_id_len]
 
         # Extract client public key
         client_public_key = payload[6 + encrypted_user_id_len:].decode()
-        logger.info(f"Extracted client public key: {client_public_key[:30]}...")
+        logger.info(f"Extracted client token and public key. <{token}, {client_public_key[:15]}>")
 
         # Decrypt user_id
         decrypted_user_id = decrypt_with_server_private_key(encrypted_user_id)
@@ -94,7 +99,7 @@ def complete_registration(client_socket, version, user_id, payload_len):
 
         # Save the user's public key
         save_user(client_public_key, user_id)
-        logger.info(f"User {user_id} successfully registered with public key.")
+        logger.info(f"User {user_id} successfully registered")
 
         # Send success response
         send_response(client_socket, version, StatusCodes.REQUEST_REGISTRATION_COMPLETE.value)

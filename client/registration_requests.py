@@ -1,3 +1,4 @@
+import os
 import socket
 import struct
 from utils.status_codes import StatusCodes
@@ -98,6 +99,9 @@ def connection_request(server_host, server_port, client, version):
     Returns the connected socket for further operations.
     """
     try:
+        if not hasattr(client, 'id') or not hasattr(client, 'private_key'):
+            raise ValueError("Client object must have 'id' and 'private_key' attributes")
+
         # Create a socket connection
         client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         client_socket.connect((server_host, server_port))
@@ -108,7 +112,6 @@ def connection_request(server_host, server_port, client, version):
         header_format = '!I B B H'
         header_data = struct.pack(header_format, int(client.id), version, op, 0)  # payload_len = 0
         client_socket.send(header_data)
-        logger.info(f"Request for unsent messages sent for user_id={client.id}")
 
         # Receive the response header
         response_header_format = '!B H H'
@@ -145,6 +148,10 @@ def register_request(client_socket, client, version):
         # Create single socket connection for entire registration process
         # Step 1: Request the registration token and server public key
         token, server_public_key = request_registration_token_with_socket(client_socket, client_id, version)
+        if server_public_key == StatusCodes.REQUEST_REGISTRATION_COMPLETE.value:
+            # load client key pair from files
+            load_client_key_pair(client)
+            return True
         if not token or not server_public_key:
             logger.error("Failed to obtain registration token or server public key. Exiting registration process.")
             return False
@@ -186,6 +193,10 @@ def request_registration_token_with_socket(client_socket, user_id, version):
         response_version, response_status, payload_len = struct.unpack(response_header_format, response_header_data)
         logger.info(f"Received response header: version={response_version}, status={response_status}, payload_len={payload_len}")
 
+        if response_status == StatusCodes.REQUEST_REGISTRATION_COMPLETE.value:
+            logger.warning(f"User {user_id} already registered.")
+            return None, StatusCodes.REQUEST_REGISTRATION_COMPLETE.value
+
         # Check for expected status
         if response_status != StatusCodes.TOKEN_ISSUED.value:
             logger.error(f"Unexpected response status: {response_status}")
@@ -195,6 +206,9 @@ def request_registration_token_with_socket(client_socket, user_id, version):
         payload = recv_exact(client_socket, payload_len)
         token = payload[:6].decode()  # First 6 bytes for the token
         server_public_key = payload[6:].decode()  # Remaining bytes for the public key
+        if not validate_server_public_key(server_public_key):
+            logger.critical("the received server public key is invalid. could be a MITM attack")
+            raise ValueError("Invalid server public key")
         logger.info(f"Successfully received token and server public key.")
         return token, server_public_key
 
@@ -213,13 +227,22 @@ def register_user_request_with_token_socket(client_socket, client, token, server
         token_str = str(token).zfill(6)[:6]
         token_bytes = token_str.encode('ascii')
 
-        # Generate client key pair
-        private_key, public_key = generate_client_key_pair()
-        logger.info("Generated client key pair successfully")
+        # before generating key pair check if the client already has a key pair saved in the files
+        if os.path.exists(f"{client.id}_private.pem") and os.path.exists(f"{client.id}_public.pem"):
+            load_client_key_pair(client)
+            logger.info("Client key pair loaded successfully from files")
+        else:
+            # Generate client key pair
+            private_key, public_key = generate_client_key_pair()
+            logger.info("Generated client key pair successfully")
+            # Save client key pair to files pem
+            with open(f"{client.id}_private.pem", "wb") as f:
+                f.write(private_key)
 
-        # Save client key pair to files
-        client.private_key = private_key
-        client.public_key = public_key
+            with open(f"{client.id}_public.pem", "wb") as f:
+                f.write(public_key)
+            client.private_key = private_key
+            client.public_key = public_key
 
         # Encrypt user_id
         data_to_encrypt = f"{user_id}"
@@ -227,7 +250,7 @@ def register_user_request_with_token_socket(client_socket, client, token, server
         logger.info("Encrypted user_id successfully")
 
         # Combine payload: token + encrypted_user_id + client_public_key
-        payload = token_bytes + encrypted_user_id + public_key
+        payload = token_bytes + encrypted_user_id + client.public_key
         payload_len = len(payload)
 
         # Validate payload size
@@ -258,3 +281,33 @@ def register_user_request_with_token_socket(client_socket, client, token, server
         return False
 
 
+def load_client_key_pair(client):
+    """
+    Load the client's RSA key pair from files.
+    """
+    try:
+        with open(f"{client.id}_private.pem", "rb") as f:
+            private_key = f.read()
+        with open(f"{client.id}_public.pem", "rb") as f:
+            public_key = f.read()
+        client.private_key = private_key
+        client.public_key = public_key
+        logger.info("Client key pair loaded successfully from files")
+    except FileNotFoundError as e:
+        logger.error(f"Key pair files not found: {e}")
+    except Exception as e:
+        logger.error(f"Error loading client key pair: {e}")
+        raise
+
+
+def validate_server_public_key(server_public_key):
+    """
+    Validate the server's public key.
+    """
+    try:
+        with open(f"server_public_key.pem", "rb") as f:
+            public_key = f.read()
+        return server_public_key == public_key.decode()
+    except Exception as e:
+        logger.error(f"Invalid server public key: {e}")
+        return False

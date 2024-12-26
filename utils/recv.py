@@ -26,7 +26,6 @@ def recv_exact(client_socket, length):
 
             if not packet:  # Client closed the connection
                 if len(data) == 0:
-                    logger.info("Client closed the connection without sending any data.")
                     return data  # Return what we have (or empty)
                 else:
                     raise ConnectionError("Socket connection broken after partial data received")
@@ -50,7 +49,6 @@ def recv_exact(client_socket, length):
             raise ConnectionError(f"Unexpected error while receiving data: {e}")
 
     return data
-
 
 
 def recv_header(client_socket, header_format):

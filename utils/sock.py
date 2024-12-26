@@ -10,6 +10,9 @@ def close_socket(sock):
     Safely shuts down and closes a socket, handling all edge cases.
     """
     try:
+        if not sock:  # Check if the socket is None
+            logger.warning("Socket is None, no action needed.")
+            return
         # Check if the socket is valid and connected
         if sock.fileno() == -1:  # Socket is already closed
             logger.warning("Socket is already closed, no action needed.")
@@ -17,7 +20,7 @@ def close_socket(sock):
 
         # Attempt to shut down the socket
         sock.shutdown(socket.SHUT_RDWR)
-        logger.info("Socket shutdown successfully.")
+        logger.info(f"Socket shutdown successfully.")
     except OSError as e:
         if e.errno == 57:  # Errno 57: Socket is not connected
             logger.warning("Socket is not connected, skipping shutdown.")
@@ -26,6 +29,5 @@ def close_socket(sock):
     finally:
         try:
             sock.close()
-            logger.info("Socket closed.")
         except Exception as e:
             logger.error(f"Error while closing the socket: {e}")

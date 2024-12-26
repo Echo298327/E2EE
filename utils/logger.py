@@ -5,11 +5,14 @@ import sys
 # Define ANSI color codes
 RESET = "\033[0m"
 COLOR_CODES = {
-    'DEBUG': "\033[37m",  # White
-    'INFO': "\033[34m",  # Green
-    'WARNING': "\033[33m",  # Yellow
-    'ERROR': "\033[31m",  # Red
-    'CRITICAL': "\033[35m"  # Magenta
+    'DEBUG': "\033[37m",       # White
+    'INFO': "\033[34m",        # Blue
+    'WARNING': "\033[33m",     # Yellow
+    'ERROR': "\033[31m",       # Red
+    'CRITICAL': "\033[35m",    # Magenta
+    "MESSAGE": "\033[32m",     # Green
+    "LIGHT_BLUE": "\033[94m",  # Light Blue
+    "RESET": "\033[0m"         # Reset
 }
 
 
@@ -45,6 +48,4 @@ def init_logger(name):
 
 
 def log(message):
-    light_blue = "\033[94m"
-    reset = "\033[0m"
-    print(f"{light_blue}{message}{reset}")
+    print(f"{COLOR_CODES.get('LIGHT_BLUE')}{message}{COLOR_CODES.get('RESET')}")
