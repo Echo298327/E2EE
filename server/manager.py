@@ -15,7 +15,6 @@ logger = init_logger('server.manager')
 def handle_client_connection(client_socket, time_stamp):
     user_id = None  # Initialize user_id for proper cleanup
     try:
-        logger.warning(f"Connected Clients: {settings.connected_clients}")
         while True:  # Keep handling requests until the client closes the connection
             try:
                 # Read and validate the header
@@ -61,7 +60,7 @@ def handle_client_connection(client_socket, time_stamp):
     finally:
         if user_id:
             remove_disconnected_client(user_id)
-        logger.info(f"Closing client {user_id} connection.")
+        logger.warning(f"Closing client {user_id} connection.")
         client_socket.close()
 
 
@@ -77,6 +76,7 @@ def add_user_to_connected_clients(user_id, client_socket):
             break
     if not client_exists:
         settings.connected_clients.append({"user_id": user_id, "connection": client_socket})
+        logger.warning(f"Connected Clients: {[client['user_id'] for client in settings.connected_clients]}")
 
 
 def remove_disconnected_client(user_id):

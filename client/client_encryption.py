@@ -90,4 +90,34 @@ def decrypt_message(encrypted_message, private_key):
         return None
 
 
+def create_signature_with_client_private_key(private_key: bytes, data: bytes) -> bytes:
+    """
+    Create a digital signature for the given data using the client's private key.
+
+    Args:
+        private_key (bytes): The client's private key in PEM format.
+        data (bytes): The data to sign (must be in bytes format).
+
+    Returns:
+        bytes: The digital signature.
+    """
+    try:
+        private_key_obj = load_pem_private_key(private_key, password=None)
+
+        # Compute the signature
+        signature = private_key_obj.sign(
+            data,
+            padding.PSS(
+                mgf=padding.MGF1(algorithm=hashes.SHA256()),
+                salt_length=padding.PSS.MAX_LENGTH
+            ),
+            hashes.SHA256()
+        )
+        return signature
+    except Exception as e:
+        logger.error(f"Error creating signature: {e}")
+        raise
+
+
+
 

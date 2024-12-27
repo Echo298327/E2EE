@@ -64,12 +64,10 @@ def initialize_server_keys():
     """
     private_key, public_key = generate_server_key_pair()
     # save the server's public key to a file
-    logger.info(f'Server public key: {public_key}')
     with open('../client/server_public_key.pem', 'wb') as f:
         f.write(public_key.encode('utf-8'))  # Encode the string into bytes
     save_server_key_pair(private_key, public_key)
     logger.info('Server keys initialized')
-
 
 
 def save_server_key_pair(private_key, public_key):

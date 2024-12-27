@@ -1,6 +1,7 @@
 import struct
 from utils.status_codes import StatusCodes
 from server.db_manager import save_message, delete_unsent_messages, get_unsent_messages, get_user_public_key
+from server.auth_encryption import validate_signature_with_client_public_key
 from utils.logger import init_logger
 from utils.recv import recv_exact
 from config import settings
@@ -40,46 +41,68 @@ def deliver_unsent_messages(client_socket, version, user_id):
 
 def send_message(client_socket, message_len, version, sender_id, timestamp):
     """
-    Handle the process of receiving a message from the client, attempting delivery,
-    and saving it to the database if the recipient is not available.
+    Handle the process of receiving a combined payload (encrypted message + signature),
+    validating the signature, and attempting delivery or storage.
+
+    Args:
+        client_socket (socket): The client socket connection.
+        message_len (int): The length of the incoming message.
+        version (int): The protocol version.
+        sender_id (int): The sender's user ID.
+        timestamp (str): The timestamp of the message.
     """
     try:
         # Receive recipient_id (4 bytes)
-        recipient_id = struct.unpack('!I', recv_exact(client_socket, 4))[0]
+        recipient_id = struct.unpack("!I", recv_exact(client_socket, 4))[0]
         logger.info(f"Received recipient_id: {recipient_id} from sender_id: {sender_id}")
 
-        # Adjust message_len to exclude recipient_id size
-        adjusted_message_len = message_len - 4
+        # Receive the combined payload (encrypted_message + signature)
+        encrypted_message_with_signature = recv_exact(client_socket, message_len - 4)
 
-        # Receive the encrypted message
-        encrypted_message = recv_exact(client_socket, adjusted_message_len)
-        logger.info(f"Received encrypted message of length: {len(encrypted_message)} bytes from sender_id={sender_id} to recipient_id={recipient_id}")
+        # Split the payload into encrypted_message and signature
+        signature_len = 256  # Assuming a fixed RSA signature length
+        encrypted_message = encrypted_message_with_signature[:-signature_len]
+        signature = encrypted_message_with_signature[-signature_len:]
+
+        logger.debug(f"Encrypted message (server): {encrypted_message.hex()}")
+        logger.debug(f"Signature (server): {signature.hex()}")
+
+        # Fetch sender's public key
+        sender_public_key = get_user_public_key(sender_id)
+        if not sender_public_key:
+            logger.error(f"Public key for sender_id={sender_id} not found.")
+            client_socket.sendall(struct.pack("!B H", version, StatusCodes.UNAUTHORIZED.value))
+            return
+
+        # Convert public key to bytes if needed
+        if isinstance(sender_public_key, str):
+            sender_public_key = sender_public_key.encode()
+
+        # Validate the signature against the encrypted message
+        if not validate_signature_with_client_public_key(sender_public_key, encrypted_message, signature):
+            logger.critical(f"Signature validation failed for sender_id={sender_id} could be a MITM attack.")
+            client_socket.sendall(struct.pack("!B H", version, StatusCodes.UNAUTHORIZED.value))
+            return
+
+        logger.info(f"Signature validated successfully for sender_id={sender_id}")
 
         # Check if the recipient is connected
         recipient_socket = get_recipient_socket(recipient_id)
 
         if recipient_socket:
-            # Attempt to deliver the message directly
+            # Deliver the encrypted message directly
             deliver_message_to_recipient(recipient_socket, encrypted_message, sender_id, timestamp, version)
             logger.info(f"Message delivered successfully to recipient_id={recipient_id}")
-
-            # Send a success response to the sender
-            response = struct.pack('!B H', version, StatusCodes.MESSAGE_DELIVERED.value)
-            client_socket.sendall(response)
+            client_socket.sendall(struct.pack("!B H", version, StatusCodes.MESSAGE_DELIVERED.value))
         else:
-            # Save the encrypted message to the database as binary
+            # Save the encrypted message
             save_message(recipient_id, sender_id, encrypted_message, timestamp)
             logger.info(f"Recipient_id={recipient_id} is offline. Message saved successfully.")
-
-            # Send a success response indicating the message was saved
-            response = struct.pack('!B H', version, StatusCodes.MESSAGE_SAVED.value)
-            client_socket.sendall(response)
+            client_socket.sendall(struct.pack("!B H", version, StatusCodes.MESSAGE_SAVED.value))
 
     except Exception as e:
         logger.error(f"Error in send_message: {e}")
-        # Send an error response
-        response = struct.pack('!B H', version, StatusCodes.SERVER_ERROR.value)
-        client_socket.sendall(response)
+        client_socket.sendall(struct.pack("!B H", version, StatusCodes.SERVER_ERROR.value))
 
 
 def get_recipient_public_key(client_socket, version, user_id):
@@ -105,7 +128,6 @@ def get_recipient_public_key(client_socket, version, user_id):
         payload = recipient_public_key.encode()
         payload_len = len(payload)
         response_header = struct.pack('!I B B H', user_id, version, StatusCodes.REQUEST_RECIPIENT_PUBLIC_KEY.value, payload_len)
-        logger.info(f"Sending public key for recipient_id: {recipient_id}, payload_len: {payload_len}")
 
         # Send the response
         client_socket.sendall(response_header)

@@ -15,7 +15,7 @@ def recv_exact(client_socket, length):
     if length > 1048576:  # 1MB max
         raise ValueError(f"Requested length {length} exceeds maximum allowed")
 
-    data = b""
+    data = b""  # Ensure binary data
     while len(data) < length:
         try:
             # Calculate the remaining bytes to read
@@ -23,17 +23,20 @@ def recv_exact(client_socket, length):
 
             # Read in chunks of 8KB or less
             packet = client_socket.recv(min(remaining, 8192))
-
             if not packet:  # Client closed the connection
                 if len(data) == 0:
-                    return data  # Return what we have (or empty)
+                    # logger.warning("Client closed connection before any data was received.")
+                    return data  # Return empty bytes
                 else:
                     raise ConnectionError("Socket connection broken after partial data received")
 
+            # logger.warning(f"Received packet of size: {len(packet)}, remaining: {remaining - len(packet)}")
             data += packet
 
         except ConnectionResetError as e:
             logger.info(f"Client reset the connection: {e}")
+            if len(data) == 0:
+                raise ConnectionError("No data received before connection reset")
             return data  # Return partial data if available
 
         except socket.timeout as e:
@@ -48,6 +51,7 @@ def recv_exact(client_socket, length):
             logger.error(f"Unexpected error while receiving data: {e}")
             raise ConnectionError(f"Unexpected error while receiving data: {e}")
 
+    # logger.info(f"Received exact data of length: {length}")
     return data
 
 
