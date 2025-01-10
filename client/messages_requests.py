@@ -92,7 +92,7 @@ def send_encrypted_message(client_socket, sender_id, recipient_id, encrypted_mes
     Args:
         client_socket (socket): The client socket connection to the server.
         sender_id (int): The sender's user ID.
-        recipient_id (int): The recipient's user ID.
+        recipient_id (str): The recipient's user ID.
         encrypted_message_with_signature (bytes): The encrypted message with appended signature.
         version (int): Protocol version.
 

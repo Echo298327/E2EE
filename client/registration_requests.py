@@ -130,7 +130,7 @@ def connection_request(server_host, server_port, client, version):
                 message_data = decrypt_message(message[2], client.private_key)
                 logger.info(f"Decrypted message: {message_data}")
         elif response_status == StatusCodes.SUCCESSFUL_CONNECTION.value:
-            logger.info("No unsent messages found.")
+            logger.info("Connection established successfully.")
 
         # Return the connected socket
         return client_socket
@@ -155,8 +155,6 @@ def register_request(client_socket, client, version):
         if not token or not server_public_key:
             logger.error("Failed to obtain registration token or server public key. Exiting registration process.")
             return False
-
-        logger.info(f"Successfully received token and server public key")
 
         # Step 2: Use the token to complete registration
         success = register_user_request_with_token_socket(

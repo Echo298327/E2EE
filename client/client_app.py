@@ -48,7 +48,7 @@ if __name__ == "__main__":
         socket_2 = connection_request(settings.SERVER_HOST, int(settings.SERVER_PORT), client_2, version)
         close_socket(socket_2)
 
-        # step 4 - client 1 sends a message to client 2 while client 2 is connected
+        # # step 4 - client 1 sends a message to client 2 while client 2 is connected
         log(f"-------------------------- Step 4 --------------------------")
         socket_1 = connection_request(settings.SERVER_HOST, int(settings.SERVER_PORT), client_1, version)
         socket_2 = connection_request(settings.SERVER_HOST, int(settings.SERVER_PORT), client_2, version)
@@ -59,7 +59,7 @@ if __name__ == "__main__":
             message="hello Client2 how are you?",
             version=version
         )
-        # # # Check if Client 2 received a message
+        # Check if Client 2 received a message
         incoming_message = check_for_incoming_messages(socket_2, client_2)
         if isinstance(incoming_message, str):
             log(f"Client 2 received a message: {incoming_message}")
